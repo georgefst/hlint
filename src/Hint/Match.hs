@@ -63,6 +63,8 @@ import Language.Haskell.GhclibParserEx.GHC.Hs.Expr
 import Language.Haskell.GhclibParserEx.GHC.Hs.ExtendInstances
 import Language.Haskell.GhclibParserEx.GHC.Utils.Outputable
 import Language.Haskell.GhclibParserEx.GHC.Types.Name.Reader
+import qualified Debug.Trace as Debug
+import Outputable
 
 readMatch :: [HintRule] -> Scope -> ModuleEx -> LHsDecl GhcPs -> [Idea]
 readMatch settings = findIdeas (concatMap readRule settings)
@@ -167,8 +169,12 @@ matchIdea sb declName HintRule{..} parent x = do
 ---------------------------------------------------------------------
 -- SIDE CONDITIONS
 
+
+pt :: Outputable a => a -> b -> b
+pt x = Debug.traceShow (renderWithStyle baseDynFlags (ppr x) (defaultDumpStyle baseDynFlags))
+
 checkSide :: Maybe (LHsExpr GhcPs) -> [(String, LHsExpr GhcPs)] -> Bool
-checkSide x bind = maybe True bool x
+checkSide x bind = maybe True (\a -> pt a $ bool a) x
     where
       bool :: LHsExpr GhcPs -> Bool
       bool (L _ (OpApp _ x op y))
@@ -204,6 +210,7 @@ checkSide x bind = maybe True bool x
       isType "LitString" (L _ (HsLit _ HsString{})) = True
       isType "Var" (L _ HsVar{}) = True
       isType "App" (L _ HsApp{}) = True
+      isType "Tmp" (L _ (HsApp xapp (L _ (HsVar _ (L _ f))) x)) = True
       isType "InfixApp" (L _ x@OpApp{}) = True
       isType "Paren" (L _ x@HsPar{}) = True
       isType "Tuple" (L _ ExplicitTuple{}) = True
